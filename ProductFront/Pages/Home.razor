@@ -1,0 +1,162 @@
+﻿@page "/"
+@using ProductFront.Models
+@using System.Text.Json.Serialization
+@using System.Text
+@using System.Text.Json
+@inject HttpClient client
+@inject NavigationManager navigation
+
+<PageTitle>Home</PageTitle>
+
+<div class="container mt-5 d-flex flex-wrap">
+    <!-- Card 1 -->
+    @foreach (Product product in products)
+    {
+        <div class="card m-3" style="width: 18rem;">
+            <div class="card-body">
+                <p hidden>@product.Id</p>
+                <h5 class="card-title">@product.Name</h5>
+                <p class="card-text">$@product.Price</p>
+                <div class="d-flex justify-content-between">
+                    <button class="btn btn-primary" @onclick="()=> OpenUpdateModal(product)">Update</button>
+                    <button class="btn btn-danger" @onclick="()=>{Delete(product.Id);}">Delete</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="modal" tabindex="-1" style="display: @(isModalVisible ? "block" : "none")">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Update Product</h5>
+                    <button type="button" class="close" @onclick="CloseModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="name">Product Name</label>
+                        <input type="text" class="form-control" id="name" @bind="updatedProduct.Name" />
+                    </div>
+                    <div class="form-group">
+                        <label for="price">Price</label>
+                        <input type="number" class="form-control" id="price" @bind="updatedProduct.Price" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="UpdateProduct">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+   
+</div>
+
+ <!-- Fixed Button -->
+  <button type="button" class="btn btn-primary fixed-btn" data-bs-toggle="modal" data-bs-target="#productModal">
+    Add New Product
+  </button>
+
+  <!-- Modal -->
+  <div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="productModalLabel">Create New Product</h5>
+        </div>
+        <div class="modal-body">
+            <EditForm Model=@updatedProduct OnValidSubmit=@CreateProduct>
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="form-group">
+                        <label for="name">Product Name</label>
+                        <InputText id="name" class="form-control" @bind-Value="updatedProduct.Name" />
+                        <ValidationMessage For="@(() => updatedProduct.Name)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="price">Product Price</label>
+                        <InputNumber id="price" class="form-control" @bind-Value="updatedProduct.Price" />
+                        <ValidationMessage For="@(() => updatedProduct.Price)" />
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Save Product</button>
+                    </div>
+            </EditForm>
+          </div>
+      </div>
+    </div>
+  </div>
+
+<style>
+    .fixed-btn {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1050;
+    }
+</style>
+@code{
+    private bool isModalVisible = false;  // Controls whether the modal is visible
+    private Product updatedProduct = new Product();  // Holds the updated product details
+
+    List<Product> products = new ();
+
+    protected override async Task OnInitializedAsync(){
+
+        try
+        {
+            products = await client.GetFromJsonAsync<List<Product>>("http://localhost:8080/api/Product", new System.Text.Json.JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
+        }
+        catch (Exception e)
+        {
+
+            throw e;
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        await client.DeleteAsync($"http://api:8080/{id}");
+
+        navigation.Refresh();
+    }
+
+    private async Task CreateProduct()
+    {
+        string json = JsonSerializer.Serialize(new {Name=updatedProduct.Name, Price=updatedProduct.Price});
+        var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
+        await client.PostAsync($"http://api:8080/New", httpContent);
+        navigation.Refresh();
+    }
+
+    private void OpenUpdateModal(Product product)
+    {
+        updatedProduct = new Product
+            {
+                Id = product.Id,
+                Name = product.Name,
+                Price = product.Price
+            };
+        isModalVisible = true; // Show the modal
+    }
+
+    private void CloseModal()
+    {
+        isModalVisible = false;
+    }
+
+    // Method to handle the update of the product
+    private async Task UpdateProduct()
+    {
+        string json = JsonSerializer.Serialize(updatedProduct);
+        var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
+        await client.PutAsync($"http://api:8080/ID/{updatedProduct.Id}", httpContent);
+
+        CloseModal();
+        navigation.Refresh();
+    }
+}
