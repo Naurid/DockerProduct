@@ -120,7 +120,7 @@
     private async Task Delete(int id)
     {
         await client.DeleteAsync($"http://api:8080/api/Product/{id}");
-
+        await UpdateList();
         StateHasChanged();
     }
 

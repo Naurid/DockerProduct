@@ -10,4 +10,3 @@ FROM  aspnet AS final
 WORKDIR /app
 COPY --from=build ./app .
 ENTRYPOINT [ "dotnet", "Product.FrontServer.dll" ]
-
